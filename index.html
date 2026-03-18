@@ -219,6 +219,35 @@ scene.add(sunL);
 scene.add(new THREE.DirectionalLight(0x4dd8ff,0.3).translateX(-6).translateY(4));
 const rim=new THREE.PointLight(0xa8f0c0,0.5,20);rim.position.set(-3,6,-4);scene.add(rim);
 
+// Adoquin canvas texture
+function makeAdoquinTex(){
+  const c=document.createElement('canvas');c.width=512;c.height=512;
+  const x=c.getContext('2d');
+  const bw=46,bh=26;
+  const tones=['#7a6855','#6e5e4a','#726050','#806858','#7c6450','#685848'];
+  x.fillStyle='#221a12';x.fillRect(0,0,512,512);
+  const rows=Math.ceil(512/bh)+1,cols=Math.ceil(512/bw)+2;
+  for(let r=0;r<rows;r++){
+    const off=(r%2)*(bw>>1);
+    for(let cl=0;cl<cols;cl++){
+      const px=cl*bw-off,py=r*bh;
+      x.fillStyle=tones[(r*7+cl*13)%tones.length];
+      x.fillRect(px+1,py+1,bw-2,bh-2);
+      // edge highlight
+      x.fillStyle='rgba(255,240,200,0.07)';
+      x.fillRect(px+1,py+1,bw-2,3);
+      x.fillStyle='rgba(255,240,200,0.04)';
+      x.fillRect(px+1,py+1,2,bh-2);
+      // edge shadow
+      x.fillStyle='rgba(0,0,0,0.18)';
+      x.fillRect(px+1,py+bh-4,bw-2,3);
+    }
+  }
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(12,8);
+  return t;
+}
+
 // Materials
 const M={
   steel:new THREE.MeshStandardMaterial({color:0xb0c0c8,roughness:.25,metalness:.85}),
@@ -228,7 +257,7 @@ const M={
   cell:new THREE.MeshStandardMaterial({color:0x1a4080,roughness:.1,metalness:.8}),
   green:new THREE.MeshStandardMaterial({color:0x3a7a3a,roughness:.8,metalness:0}),
   soil:new THREE.MeshStandardMaterial({color:0x5a3a1a,roughness:1,metalness:0}),
-  pave:new THREE.MeshStandardMaterial({color:0x6a7060,roughness:.9,metalness:0}),
+  pave:new THREE.MeshStandardMaterial({map:makeAdoquinTex(),roughness:.92,metalness:0}),
   trash:new THREE.MeshStandardMaterial({color:0x2d5f2d,roughness:.5,metalness:.3}),
   glass:new THREE.MeshStandardMaterial({color:0x4dd8ff,roughness:.05,metalness:.1,transparent:true,opacity:.2}),
   water:new THREE.MeshStandardMaterial({color:0x4dd8ff,roughness:.3,metalness:.2})
@@ -241,9 +270,6 @@ function cy(rt,rb,h,s,m,x=0,y=0,z=0){const o=new THREE.Mesh(new THREE.CylinderGe
 // Ground
 const gnd=new THREE.Mesh(new THREE.PlaneGeometry(24,16),M.pave);
 gnd.rotation.x=-Math.PI/2;gnd.receiveShadow=true;scene.add(gnd);
-
-// Grid lines
-for(let i=-6;i<=6;i++){bx(.02,.005,16,new THREE.MeshBasicMaterial({color:0x556655}),i*1,0.001,0);bx(24,.005,.02,new THREE.MeshBasicMaterial({color:0x556655}),0,0.001,i)}
 
 // Water infiltration
 for(let i=0;i<10;i++)bx(.06,.015,3,M.water,-3+i*.7,0.008,0);
