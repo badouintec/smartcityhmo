@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart City HMO</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&family=Space+Mono&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Exo 2',sans-serif;background:#0a0f1a;color:#e0f0ff}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:999;background:rgba(10,15,26,.95);border-bottom:2px solid #4dd8ff;display:flex;align-items:center;justify-content:space-between;padding:12px 30px;backdrop-filter:blur(12px)}
+nav .logo{font-size:20px;font-weight:900;letter-spacing:.12em;background:linear-gradient(90deg,#4dd8ff,#a8f0c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+nav .links{display:flex;gap:20px}
+nav .links a{color:#a8f0c0;text-decoration:none;font-size:11px;font-family:'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;padding:6px 0;border-bottom:2px solid transparent;transition:.2s}
+nav .links a:hover{color:#4dd8ff;border-bottom-color:#4dd8ff}
+
+/* HERO */
+.hero{display:flex;align-items:center;justify-content:center;flex-direction:column;padding:60px 30px 40px;text-align:center;background:radial-gradient(ellipse at center bottom,rgba(77,216,255,.08) 0%,transparent 70%)}
+.hero h1{font-size:clamp(32px,5vw,56px);font-weight:900;background:linear-gradient(135deg,#4dd8ff,#a8f0c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px}
+.hero p{max-width:700px;color:#b0c8d8;font-size:16px;line-height:1.7;margin-bottom:30px}
+.pills{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.pill{background:rgba(77,216,255,.1);border:1px solid #4dd8ff44;padding:8px 18px;border-radius:20px;font-size:12px;color:#a8f0c0;letter-spacing:.05em}
+
+/* SECTION */
+.section{padding:50px 30px;max-width:1300px;margin:0 auto}
+.section-title{font-size:28px;font-weight:900;letter-spacing:.08em;margin-bottom:30px;color:#4dd8ff;text-align:center;text-transform:uppercase}
+
+/* SPLIT LAYOUT: map + model side by side */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.split{grid-template-columns:1fr}}
+
+.panel{background:rgba(13,25,45,.7);border:1px solid #4dd8ff33;border-radius:6px;overflow:hidden;position:relative}
+.panel-header{background:rgba(77,216,255,.12);padding:10px 16px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4dd8ff;display:flex;align-items:center;gap:8px;border-bottom:1px solid #4dd8ff33}
+.panel-header span{font-size:16px}
+
+#map{width:100%;height:400px}
+#three-canvas{width:100%;height:400px;display:block;background:#060a12;cursor:grab}
+#three-canvas:active{cursor:grabbing}
+
+/* 3D controls */
+.three-controls{display:flex;gap:6px;padding:8px 12px;background:rgba(10,15,26,.9);flex-wrap:wrap}
+.cbtn{padding:5px 12px;background:rgba(77,216,255,.12);border:1px solid #4dd8ff66;color:#4dd8ff;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;font-family:'Exo 2',sans-serif;text-transform:uppercase;transition:.2s}
+.cbtn:hover,.cbtn.on{background:rgba(77,216,255,.3);box-shadow:0 0 8px rgba(77,216,255,.4)}
+
+/* CARDS */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:10px}
+.card{background:rgba(13,25,45,.6);border:1px solid #4dd8ff22;border-radius:6px;padding:20px;transition:.3s;border-left:3px solid #4dd8ff}
+.card:hover{border-color:#4dd8ff;transform:translateY(-4px);box-shadow:0 8px 24px rgba(77,216,255,.15)}
+.card h3{color:#a8f0c0;font-size:14px;margin-bottom:6px}
+.card .route{color:#4dd8ff;font-size:10px;font-family:'Space Mono',monospace;margin-bottom:8px}
+.card p{color:#8aa;font-size:11px;line-height:1.5}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.tag{background:rgba(77,216,255,.1);border:1px solid #4dd8ff33;padding:2px 6px;border-radius:2px;font-size:9px;color:#4dd8ff;font-family:'Space Mono',monospace}
+
+/* SPECS */
+.specs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.spec{background:rgba(77,216,255,.06);border-left:2px solid #a8f0c0;padding:16px;border-radius:0 4px 4px 0}
+.spec h4{color:#a8f0c0;font-size:12px;letter-spacing:.1em;margin-bottom:6px;text-transform:uppercase}
+.spec p{color:#8aa;font-size:12px;line-height:1.5}
+
+/* FOOTER */
+footer{text-align:center;padding:30px;border-top:1px solid #4dd8ff33;margin-top:60px;color:#4dd8ff44;font-size:11px;letter-spacing:.1em}
+
+/* Leaflet popup override */
+.leaflet-popup-content-wrapper{background:rgba(13,25,45,.95)!important;color:#e0f0ff!important;border:1px solid #4dd8ff!important;border-radius:4px!important;font-family:'Space Mono',monospace!important;font-size:12px!important}
+.leaflet-popup-tip{background:rgba(13,25,45,.95)!important}
+.leaflet-popup-close-button{color:#4dd8ff!important}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">🌍 SMART CITY HMO</div>
+  <div class="links">
+    <a href="#hero-section">Inicio</a>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#paradas">Paradas</a>
+    <a href="#specs-section">Specs</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="hero-section">
+  <h1>Paradas Ecológicas<br>Hermosillo</h1>
+  <p>Transformamos el transporte urbano con estaciones inteligentes: energía solar, vegetación nativa y diseño paramétrico adaptado al desierto de Sonora.</p>
+  <div class="pills">
+    <div class="pill">☀️ Energía Solar 1.6 kW</div>
+    <div class="pill">🌵 Techo Verde Xerófito</div>
+    <div class="pill">💧 Infiltración Pluvial</div>
+    <div class="pill">♻️ Reciclaje Inteligente</div>
+  </div>
+</section>
+
+<!-- DASHBOARD: Map + 3D side by side -->
+<section class="section" id="dashboard">
+  <div class="section-title">Dashboard</div>
+  <div class="split">
+    <!-- MAP -->
+    <div class="panel">
+      <div class="panel-header"><span>🗺️</span> Mapa de Ecoparadas — Hermosillo</div>
+      <div id="map"></div>
+    </div>
+    <!-- 3D MODEL -->
+    <div class="panel">
+      <div class="panel-header"><span>🏗️</span> Modelo 3D — Parada San Benito</div>
+      <canvas id="three-canvas"></canvas>
+      <div class="three-controls">
+        <button class="cbtn" onclick="resetCam()">↺ Reset</button>
+        <button class="cbtn" id="btn-rot" onclick="toggleRot()">⟳ Rotar</button>
+        <button class="cbtn" id="btn-wire" onclick="toggleWire()">◻ Wire</button>
+        <button class="cbtn" onclick="camTo(0,3,10)">Frente</button>
+        <button class="cbtn" onclick="camTo(10,3,0)">Lateral</button>
+        <button class="cbtn" onclick="camTo(0,12,0.1)">Planta</button>
+        <button class="cbtn" onclick="camTo(8,6,8)">ISO</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PARADAS -->
+<section class="section" id="paradas">
+  <div class="section-title">Ecoparadas</div>
+  <div class="cards" id="cards-container"></div>
+</section>
+
+<!-- SPECS -->
+<section class="section" id="specs-section">
+  <div class="section-title">Especificaciones</div>
+  <div class="specs">
+    <div class="spec"><h4>Dimensiones</h4><p>8.0 m × 4.5 m, altura 4.2 m</p></div>
+    <div class="spec"><h4>Solar</h4><p>4 paneles × 400 W = 1.6 kW</p></div>
+    <div class="spec"><h4>Techo Verde</h4><p>32 m² con 8 especies xerófitas</p></div>
+    <div class="spec"><h4>Capacidad</h4><p>12-15 personas sentadas</p></div>
+    <div class="spec"><h4>Estructura</h4><p>Acero galvanizado + epóxico</p></div>
+    <div class="spec"><h4>Vida Útil</h4><p>25+ años, mantenimiento anual</p></div>
+  </div>
+</section>
+
+<footer>Smart City HMO — Paradas Ecológicas Inteligentes — Hermosillo, Sonora</footer>
+
+<!-- SCRIPTS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+const stops=[
+  {name:"San Benito",route:"Ruta 12",lat:29.0728,lng:-110.9559,desc:"Parada principal zona centro. Conecta norte-sur.",feat:["Solar","Techo Verde","USB","WiFi"]},
+  {name:"Colosio",route:"Ruta 8, 14",lat:29.0855,lng:-110.9691,desc:"Avenida principal, zona comercial y administrativa.",feat:["Solar","Reciclaje","Sombra","Asientos"]},
+  {name:"Centro de Gobierno",route:"Ruta 5, 9",lat:29.0697,lng:-110.9454,desc:"Edificios administrativos. Diseño accesible.",feat:["Techo Verde","Accesible","LED","Plazoleta"]},
+  {name:"Tecnológico",route:"Ruta 11, 15",lat:29.0942,lng:-110.9612,desc:"Zona educativa. Proyecto piloto IoT.",feat:["Solar","USB","WiFi","IoT"]},
+  {name:"Hermosillo Viejo",route:"Ruta 3, 7",lat:29.0675,lng:-110.9637,desc:"Zona histórica y cultural.",feat:["Plantas Nativas","Descanso","Info Turística"]},
+  {name:"Hospital General",route:"Ruta 2, 6",lat:29.0790,lng:-110.9520,desc:"Acceso a instalaciones sanitarias.",feat:["Accesible","Emergencia","Señalización"]}
+];
+
+// ═══════════════════════════════════════════════════════════════
+// LEAFLET MAP
+// ═══════════════════════════════════════════════════════════════
+const map=L.map('map',{center:[29.0780,-110.9580],zoom:14,zoomControl:true});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
+
+// Custom marker
+const busIcon=L.divIcon({html:'<div style="background:#4dd8ff;width:24px;height:24px;border-radius:50%;border:3px solid #0a0f1a;box-shadow:0 0 10px #4dd8ff;"></div>',iconSize:[24,24],iconAnchor:[12,12],className:''});
+
+stops.forEach(s=>{
+  L.marker([s.lat,s.lng],{icon:busIcon})
+    .bindPopup(`<b style="color:#4dd8ff">${s.name}</b><br><span style="color:#a8f0c0">${s.route}</span><br>${s.desc}`)
+    .addTo(map);
+});
+
+// Routes
+L.polyline([[29.0942,-110.9612],[29.0855,-110.9691],[29.0728,-110.9559],[29.0675,-110.9637]],{color:'#4dd8ff',weight:3,opacity:.6,dashArray:'8 6'}).addTo(map);
+L.polyline([[29.0790,-110.9520],[29.0728,-110.9559],[29.0697,-110.9454]],{color:'#a8f0c0',weight:3,opacity:.6,dashArray:'8 6'}).addTo(map);
+
+setTimeout(()=>map.invalidateSize(),300);
+
+// ═══════════════════════════════════════════════════════════════
+// CARDS
+// ═══════════════════════════════════════════════════════════════
+const cc=document.getElementById('cards-container');
+stops.forEach(s=>{
+  const d=document.createElement('div');d.className='card';
+  d.innerHTML=`<h3>${s.name}</h3><div class="route">📍 ${s.route}</div><p>${s.desc}</p><div class="tags">${s.feat.map(f=>`<span class="tag">${f}</span>`).join('')}</div>`;
+  d.onclick=()=>{map.setView([s.lat,s.lng],16);document.getElementById('dashboard').scrollIntoView({behavior:'smooth'})};
+  cc.appendChild(d);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// THREE.JS
+// ═══════════════════════════════════════════════════════════════
+const canvas=document.getElementById('three-canvas');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x060a12);
+scene.fog=new THREE.FogExp2(0x060a12,0.02);
+
+const W=canvas.clientWidth,H=canvas.clientHeight;
+const cam=new THREE.PerspectiveCamera(45,W/H,0.1,200);
+cam.position.set(8,5,8);
+
+const gl=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
+gl.setPixelRatio(window.devicePixelRatio);
+gl.setSize(W,H);
+gl.shadowMap.enabled=true;
+gl.shadowMap.type=THREE.PCFSoftShadowMap;
+
+// Lights
+scene.add(new THREE.AmbientLight(0x334466,0.7));
+const sunL=new THREE.DirectionalLight(0xfff5e0,2);
+sunL.position.set(8,15,6);sunL.castShadow=true;
+sunL.shadow.mapSize.set(2048,2048);
+sunL.shadow.camera.left=-12;sunL.shadow.camera.right=12;
+sunL.shadow.camera.top=12;sunL.shadow.camera.bottom=-12;
+scene.add(sunL);
+scene.add(new THREE.DirectionalLight(0x4dd8ff,0.3).translateX(-6).translateY(4));
+const rim=new THREE.PointLight(0xa8f0c0,0.5,20);rim.position.set(-3,6,-4);scene.add(rim);
+
+// Materials
+const M={
+  steel:new THREE.MeshStandardMaterial({color:0xb0c0c8,roughness:.25,metalness:.85}),
+  conc:new THREE.MeshStandardMaterial({color:0x8a9090,roughness:.85,metalness:.05}),
+  wood:new THREE.MeshStandardMaterial({color:0x8b5c2a,roughness:.7,metalness:.02}),
+  solar:new THREE.MeshStandardMaterial({color:0x182860,roughness:.15,metalness:.7}),
+  cell:new THREE.MeshStandardMaterial({color:0x1a4080,roughness:.1,metalness:.8}),
+  green:new THREE.MeshStandardMaterial({color:0x3a7a3a,roughness:.8,metalness:0}),
+  soil:new THREE.MeshStandardMaterial({color:0x5a3a1a,roughness:1,metalness:0}),
+  pave:new THREE.MeshStandardMaterial({color:0x6a7060,roughness:.9,metalness:0}),
+  trash:new THREE.MeshStandardMaterial({color:0x2d5f2d,roughness:.5,metalness:.3}),
+  glass:new THREE.MeshStandardMaterial({color:0x4dd8ff,roughness:.05,metalness:.1,transparent:true,opacity:.2}),
+  water:new THREE.MeshStandardMaterial({color:0x4dd8ff,roughness:.3,metalness:.2})
+};
+const allMats=Object.values(M);
+
+function bx(w,h,d,m,x=0,y=0,z=0){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o}
+function cy(rt,rb,h,s,m,x=0,y=0,z=0){const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o}
+
+// Ground
+const gnd=new THREE.Mesh(new THREE.PlaneGeometry(24,16),M.pave);
+gnd.rotation.x=-Math.PI/2;gnd.receiveShadow=true;scene.add(gnd);
+
+// Grid lines
+for(let i=-6;i<=6;i++){bx(.02,.005,16,new THREE.MeshBasicMaterial({color:0x556655}),i*1,0.001,0);bx(24,.005,.02,new THREE.MeshBasicMaterial({color:0x556655}),0,0.001,i)}
+
+// Water infiltration
+for(let i=0;i<10;i++)bx(.06,.015,3,M.water,-3+i*.7,0.008,0);
+
+// Back wall
+bx(.25,3.8,4.2,M.conc,-4,1.9,0);
+for(let i=0;i<7;i++)bx(.02,.03,3.8,new THREE.MeshBasicMaterial({color:0x6a7878}),-3.86,.5+i*.5,0);
+
+// Columns
+[[-3.3,-1.8],[-3.3,1.8],[3.3,-1.8],[3.3,1.8]].forEach(p=>cy(.08,.12,4,8,M.steel,p[0],2,p[1]));
+
+// Diagonal braces
+function brace(a,b){
+  const d=new THREE.Vector3().subVectors(new THREE.Vector3(...b),new THREE.Vector3(...a));
+  const len=d.length();
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,len,6),M.steel);
+  m.position.set((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2);
+  m.lookAt(new THREE.Vector3(...b));m.rotateX(Math.PI/2);
+  m.castShadow=true;scene.add(m);
+}
+brace([-3.3,0,-1.8],[-3.3,3.5,-1.2]);brace([3.3,0,-1.8],[3.3,3.5,-1.2]);
+brace([-3.3,0,1.8],[-3.3,3.5,1.2]);brace([3.3,0,1.8],[3.3,3.5,1.2]);
+
+// Roof canopy
+bx(8,.16,5,M.conc,0,4.05,0);
+bx(8.2,.06,5.2,M.steel,0,3.95,0);
+
+// Green roof soil
+bx(7,.12,4.2,M.soil,0,4.18,0);
+
+// Solar panels (4)
+// (coordinates used inline below)
+[[-2.2,4.35,-1.6],[2.2,4.35,-1.6],[-2.2,4.35,1.6],[2.2,4.35,1.6]].forEach((p,i)=>{
+  const pan=bx(1.5,.04,.9,M.solar,p[0],p[1],p[2]);
+  pan.rotation.x=i<2?-.15:.15;
+  // cell grid
+  for(let c=0;c<5;c++)bx(.24,.02,.75,M.cell,p[0]-.6+c*.3,p[1]+.02,p[2]);
+});
+
+// Bench
+bx(6,.08,1.2,M.wood,0,.55,-0.5);
+// Bench supports
+[[-2.5,.3,-0.5],[0,.3,-0.5],[2.5,.3,-0.5]].forEach(p=>bx(.06,.5,.06,M.steel,...p));
+
+// Back bench
+bx(6,.08,.5,M.wood,-0.5,1.0,-1.4);
+bx(.06,.9,.06,M.steel,-2.5,.55,-1.4);
+bx(.06,.9,.06,M.steel,2.5,.55,-1.4);
+
+// Glass panels
+bx(.04,3,1.5,M.glass,-3.9,1.8,-0.8);
+bx(.04,3,1.5,M.glass,-3.9,1.8,0.8);
+
+// Trash bin
+bx(.45,.75,.45,M.trash,4,0.45,-.8);
+bx(.5,.04,.5,M.steel,4,.87,-.8);
+cy(.1,.1,.02,6,new THREE.MeshStandardMaterial({color:0x4dd8ff}),4,.92,-.8);
+
+// Plants on roof
+function cactus(x,z,h){
+  cy(.1,.12,h,6,M.green,x,4.18+h/2,z);
+  cy(.06,.06,h*.4,6,M.green,x+.15,4.18+h*.7,z);
+}
+function agave(x,z){
+  for(let a=0;a<6;a++){
+    const ang=a*Math.PI/3;
+    const leaf=bx(.06,.04,.35,M.green,x+Math.cos(ang)*.18,4.25,z+Math.sin(ang)*.18);
+    leaf.rotation.y=ang;leaf.rotation.x=-.3;
+  }
+  cy(.06,.08,.1,6,M.green,x,4.22,z);
+}
+cactus(-1.5,-.5,.7);cactus(1.8,.8,.9);cactus(-.5,1.2,.5);
+agave(1,-.8);agave(-2,1);agave(.3,.5);
+
+// Sign post
+cy(.04,.04,2.5,6,M.steel,4.5,1.25,1.5);
+bx(.6,.4,.04,new THREE.MeshStandardMaterial({color:0x1a3050}),4.5,2.5,1.5);
+bx(.5,.3,.02,new THREE.MeshStandardMaterial({color:0x4dd8ff}),4.5,2.5,1.52);
+
+// Desert hills in background
+const hillMat=new THREE.MeshStandardMaterial({color:0x3a3020,roughness:1});
+const hill1=new THREE.Mesh(new THREE.SphereGeometry(8,16,8,0,Math.PI*2,0,Math.PI/2),hillMat);
+hill1.position.set(-10,-.5,-12);hill1.scale.y=.3;scene.add(hill1);
+const hill2=new THREE.Mesh(new THREE.SphereGeometry(6,16,8,0,Math.PI*2,0,Math.PI/2),hillMat);
+hill2.position.set(8,-.5,-14);hill2.scale.y=.25;scene.add(hill2);
+
+// ═══════════════════════════════════════════════════════════════
+// ORBIT CAMERA (manual, no dependency)
+// ═══════════════════════════════════════════════════════════════
+let orb={r:14,theta:.6,phi:1.1};
+let tgt=new THREE.Vector3(0,2,0);
+let auto=false,wire=false,drag=false,prevX=0,prevY=0;
+
+function updCam(){
+  cam.position.set(
+    tgt.x+orb.r*Math.sin(orb.phi)*Math.cos(orb.theta),
+    tgt.y+orb.r*Math.cos(orb.phi),
+    tgt.z+orb.r*Math.sin(orb.phi)*Math.sin(orb.theta)
+  );
+  cam.lookAt(tgt);
+}
+updCam();
+
+canvas.addEventListener('pointerdown',e=>{drag=true;prevX=e.clientX;prevY=e.clientY;canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointerup',e=>{drag=false;canvas.releasePointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  orb.theta-=(e.clientX-prevX)*.008;
+  orb.phi-=(e.clientY-prevY)*.008;
+  orb.phi=Math.max(.15,Math.min(Math.PI-.15,orb.phi));
+  prevX=e.clientX;prevY=e.clientY;
+  updCam();
+});
+canvas.addEventListener('wheel',e=>{e.preventDefault();orb.r=Math.max(4,Math.min(40,orb.r+e.deltaY*.03));updCam()},{passive:false});
+
+function resetCam(){orb={r:14,theta:.6,phi:1.1};tgt.set(0,2,0);updCam()}
+function camTo(x,y,z){const v=new THREE.Vector3(x,y,z).sub(tgt);orb.r=v.length();orb.theta=Math.atan2(v.z,v.x);orb.phi=Math.acos(v.y/orb.r);updCam()}
+function toggleRot(){auto=!auto;document.getElementById('btn-rot').classList.toggle('on',auto)}
+function toggleWire(){wire=!wire;allMats.forEach(m=>m.wireframe=wire);document.getElementById('btn-wire').classList.toggle('on',wire)}
+
+// Animation
+let t=0;
+function loop(){
+  requestAnimationFrame(loop);
+  t+=.01;
+  if(auto){orb.theta+=.004;updCam()}
+  rim.intensity=.4+Math.sin(t)*.2;
+  gl.render(scene,cam);
+}
+loop();
+
+// Resize
+function onResize(){
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  cam.aspect=w/h;cam.updateProjectionMatrix();
+  gl.setSize(w,h,false);
+  map.invalidateSize();
+}
+window.addEventListener('resize',onResize);
+setTimeout(onResize,200);
+</script>
+</body>
+</html>
